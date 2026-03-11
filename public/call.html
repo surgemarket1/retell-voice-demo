@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habla con Rita — Demo de Asistente Virtual</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e2e8f0;
+    }
+    .container {
+      text-align: center;
+      max-width: 480px;
+      padding: 40px 24px;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f8fafc;
+    }
+    .business-name {
+      font-size: 16px;
+      color: #94a3b8;
+      margin-bottom: 32px;
+    }
+    .status {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      min-height: 20px;
+    }
+    .status.active { color: #4ade80; }
+    .status.error { color: #f87171; }
+    .status.connecting { color: #fbbf24; }
+
+    .call-btn {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .call-btn.start {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+    }
+    .call-btn.start:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
+    }
+    .call-btn.end {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+    }
+    .call-btn.end:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+    }
+    .call-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Pulsing ring animation when active */
+    .pulse-ring {
+      display: none;
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 3px solid rgba(34, 197, 94, 0.4);
+      animation: pulse 1.5s ease-out infinite;
+    }
+    .pulse-ring.active { display: block; }
+    .pulse-ring.red { border-color: rgba(239, 68, 68, 0.4); }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    .btn-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .instructions {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 16px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .instructions h3 {
+      color: #f8fafc;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+    .footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: #475569;
+    }
+
+    /* Waveform visualizer */
+    .waveform {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      gap: 3px;
+      height: 40px;
+      margin-bottom: 16px;
+    }
+    .waveform.active { display: flex; }
+    .waveform .bar {
+      width: 4px;
+      background: #4ade80;
+      border-radius: 2px;
+      animation: wave 0.8s ease-in-out infinite;
+    }
+    .waveform .bar:nth-child(1) { animation-delay: 0s; height: 10px; }
+    .waveform .bar:nth-child(2) { animation-delay: 0.1s; height: 20px; }
+    .waveform .bar:nth-child(3) { animation-delay: 0.2s; height: 30px; }
+    .waveform .bar:nth-child(4) { animation-delay: 0.3s; height: 20px; }
+    .waveform .bar:nth-child(5) { animation-delay: 0.4s; height: 10px; }
+
+    @keyframes wave {
+      0%, 100% { transform: scaleY(0.5); }
+      50% { transform: scaleY(1.5); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">📞</div>
+    <h1>Habla con Rita</h1>
+    <div class="business-name" id="businessName">Cargando...</div>
+
+    <div class="waveform" id="waveform">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+
+    <div id="status" class="status">Pulse el boton para iniciar la llamada</div>
+
+    <div class="btn-container">
+      <div class="pulse-ring" id="pulseRing"></div>
+      <button class="call-btn start" id="callBtn" onclick="toggleCall()">📞</button>
+    </div>
+
+    <div class="instructions">
+      <h3>Como funciona:</h3>
+      1. Pulse el boton verde para llamar<br>
+      2. Permita el acceso al microfono de su navegador<br>
+      3. Hable con Rita como si fuera un cliente real<br>
+      4. Pulse el boton rojo para colgar
+    </div>
+
+    <div class="footer">Demo privada — Asistente Virtual con IA</div>
+  </div>
+
+  <!-- Retell Web Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/retell-client-js-sdk@3/bundle/index.js"></script>
+
+  <script>
+    // Determine which agent based on URL path
+    const path = window.location.pathname.replace(/\/$/, "");
+    const agentKey = path === "/david" ? "david" : path === "/jose" ? "jose" : null;
+
+    const businessNames = {
+      david: "Persiana Costa del Sol — David",
+      jose: "Telecomunicaciones Caballero — Jose Antonio"
+    };
+
+    if (agentKey) {
+      document.getElementById("businessName").textContent = businessNames[agentKey];
+    } else {
+      document.getElementById("businessName").textContent = "Agente no encontrado";
+      document.getElementById("status").textContent = "Error: Use /david o /jose en la URL";
+      document.getElementById("status").className = "status error";
+      document.getElementById("callBtn").disabled = true;
+    }
+
+    let retellClient = null;
+    let isCallActive = false;
+
+    async function toggleCall() {
+      if (isCallActive) {
+        endCall();
+      } else {
+        startCall();
+      }
+    }
+
+    async function startCall() {
+      const btn = document.getElementById("callBtn");
+      const status = document.getElementById("status");
+      const pulseRing = document.getElementById("pulseRing");
+      const waveform = document.getElementById("waveform");
+
+      btn.disabled = true;
+      status.textContent = "Conectando con Rita...";
+      status.className = "status connecting";
+
+      try {
+        // 1. Get access token from our server
+        const resp = await fetch("/api/create-call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agent: agentKey })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error || "Error del servidor");
+        }
+
+        const { access_token } = await resp.json();
+
+        // 2. Initialize Retell Web Client
+        retellClient = new window.RetellWebClient();
+
+        retellClient.on("call_started", () => {
+          console.log("Call started");
+          status.textContent = "Conectado — hable con Rita";
+          status.className = "status active";
+          waveform.classList.add("active");
+        });
+
+        retellClient.on("call_ended", () => {
+          console.log("Call ended");
+          resetUI();
+        });
+
+        retellClient.on("error", (error) => {
+          console.error("Retell error:", error);
+          status.textContent = "Error en la llamada. Intente de nuevo.";
+          status.className = "status error";
+          resetUI();
+        });
+
+        // 3. Start the call
+        await retellClient.startCall({
+          accessToken: access_token,
+          sampleRate: 24000
+        });
+
+        isCallActive = true;
+        btn.disabled = false;
+        btn.className = "call-btn end";
+        btn.textContent = "🔴";
+        pulseRing.classList.add("active", "red");
+
+      } catch (err) {
+        console.error("Start call error:", err);
+        status.textContent = "Error: " + err.message;
+        status.className = "status error";
+        btn.disabled = false;
+      }
+    }
+
+    function endCall() {
+      if (retellClient) {
+        retellClient.stopCall();
+      }
+      resetUI();
+    }
+
+    function resetUI() {
+      const btn = document.getElementById("callBtn");
+      const status = document.getElementById("status");
+      const pulseRing = document.getElementById("pulseRing");
+      const waveform = document.getElementById("waveform");
+
+      isCallActive = false;
+      btn.className = "call-btn start";
+      btn.textContent = "📞";
+      btn.disabled = false;
+      pulseRing.classList.remove("active", "red");
+      waveform.classList.remove("active");
+      status.textContent = "Llamada finalizada. Pulse para llamar de nuevo.";
+      status.className = "status";
+    }
+  </script>
+</body>
+</html>
